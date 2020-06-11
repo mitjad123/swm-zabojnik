@@ -1,130 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'note.dart';
 import 'storage_util.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:charts_flutter/flutter.dart' as charts;
 
-
 void main() => runApp(MyApp());
 
-
-class StackedBarChart extends StatelessWidget {
-  final List<charts.Series> seriesList;
-  final bool animate;
-
-  StackedBarChart(this.seriesList, {this.animate});
-
-  /// Creates a stacked [BarChart] with sample data and no transition.
-  factory StackedBarChart.withSampleData() {
-    return new StackedBarChart(
-      _createSampleData(),
-      // Disable animations for image tests.
-      animate: false,
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return new charts.BarChart(
-      seriesList,
-      animate: animate,
-      barGroupingType: charts.BarGroupingType.stacked,
-    );
-  }
-
-  /// Create series list with multiple series
-  static List<charts.Series<OrdinalSales, String>> _createSampleData() {
-    final desktopSalesData = [
-      new OrdinalSales('Vaš zabojnik', 74),
-    ];
-
-    final tableSalesData = [
-      new OrdinalSales('Vaš zabojnik', 100-74),
-    ];
-
-    return [
-      new charts.Series<OrdinalSales, String>(
-        id: 'Prazno',
-        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
-        domainFn: (OrdinalSales sales, _) => sales.year,
-        measureFn: (OrdinalSales sales, _) => sales.sales,
-        data: desktopSalesData,
-      ),
-      new charts.Series<OrdinalSales, String>(
-        id: 'Polno',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
-        domainFn: (OrdinalSales sales, _) => sales.year,
-        measureFn: (OrdinalSales sales, _) => sales.sales,
-        data: tableSalesData,
-      ),
-    ];
-  }
-}
-
-/// Sample ordinal data type.
-class OrdinalSales {
-  final String year;
-  final int sales;
-
-  OrdinalSales(this.year, this.sales);
-}
-
-class SimpleLineChart extends StatelessWidget {
-  final List<charts.Series> seriesList;
-  final bool animate;
-
-  SimpleLineChart(this.seriesList, {this.animate});
-
-  /// Creates a [LineChart] with sample data and no transition.
-  factory SimpleLineChart.withSampleData() {
-    return new SimpleLineChart(
-      _createSampleData(),
-      // Disable animations for image tests.
-      animate: false,
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return new charts.TimeSeriesChart(
-        seriesList,
-        animate: animate
-    );
-  }
-
-  /// Create one series with sample hard coded data.
-  static List<charts.Series<LinearValue, DateTime>> _createSampleData() {
-    final data = [
-      new LinearValue(new DateTime(2020,5,6), 5),
-    ];
-    data.add(LinearValue(DateTime.parse("2020-05-07"), 25));
-    data.add(LinearValue(DateTime.parse("2020-05-08"), 25));
-    data.add(LinearValue(DateTime.parse("2020-05-09"), 25));
-
-    return [
-      new charts.Series<LinearValue, DateTime>(
-        id: 'Value',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
-        domainFn: (LinearValue Value, _) => Value.measuredate,
-        measureFn: (LinearValue Value, _) => Value.Value,
-        data: data,
-      )
-    ];
-  }
-}
-
-/// Sample linear data type.
-class LinearValue {
-  final DateTime measuredate;
-  final int Value;
-
-  LinearValue(this.measuredate, this.Value);
+/// Time-series data type.
+class TimeSeries {
+  final DateTime time;
+  final int value;
+  TimeSeries (this.time, this.value);
 }
 
 class MyApp extends StatelessWidget {
@@ -155,30 +44,37 @@ class _MyHomePageState extends State<MyHomePage> {
   double curlat=0.0;
   double curlng=0.0;
 
+  List dataJSON;
+  List CurDataJSON;
+
+  Future<String> getAveSensorData() async {
+    var response = await http //za grafikon povprečnih vrednosti
+        .get(Uri.encodeFull("http://pametnozodpadki.si/senddata.php?sensor=00FAE453B8E926A1"), headers: {"Accept": "application/json"});
+
+    if (this.mounted) {
+      this.setState(() {
+        dataJSON = json.decode(response.body);
+      });
+    }
+  }
+
+  Future<String> getCurSensorData() async {
+    var response = await http //za grafikon zadnjih meritev
+        .get(Uri.encodeFull("http://pametnozodpadki.si/senddata.php?sensor=00FAE453B8E926A1&list=30"), headers: {"Accept": "application/json"});
+
+    if (this.mounted) {
+      this.setState(() {
+        CurDataJSON = json.decode(response.body);
+      });
+    }
+  }
+
+
   Widget chartContainer = Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [Text('Chart Viewer')],
   );
 
-  //seznam za podatke iz poizvedbe URL
-  List<Note> _notes = List<Note>();
-  //izvede poizvedbo na serverju
-  Future<List<Note>> fecthNotes() async {
-    //potegne podatke v obliki JSONa v app
-    var url = 'http://pametnozodpadki.si/senddata.php?sensor=00FAE453B8E926A1';//+StorageUtil.getString("myCan");
-    print(url);
-    var response = await http.get(url);
-
-    var notes = List<Note>();
-
-    if (response.statusCode == 200) {
-      var notesJson = json.decode(response.body);
-      for (var notesJson in notesJson) {
-        notes.add(Note.fromJson(notesJson));
-      }
-    }
-    return notes;
-  }
 
   setposition(){
     _getCurrentLocation();
@@ -189,35 +85,16 @@ class _MyHomePageState extends State<MyHomePage> {
       curlat = 46.056946; //Ljubljana
       curlng = 14.505751;
     }
-
   }
-  refreshnotes(){
-    setposition();
-    //izvede poizvedbo na serverju
-    fecthNotes().then((value) {
-      _notes.clear(); //počisti, da bo vedno samo 10 zadnjih zapisov v seznamu
-      setState(() {
-        _notes.addAll(value);
-      });
-
-    });
-    // Put your code here, which you want to execute on onPress event.
-  }
-
-  @override
-
 
   @override
   void initState() {
     StorageUtil.putString("myCan", "00FAE453B8E926A1");
-    refreshnotes();
+    setposition();
+    this.getAveSensorData();
+    this.getCurSensorData();
     super.initState();
   }
-
-  List<Color> _colors = [
-    Colors.red,
-    Colors.green
-  ];
 
   List<LatLng> tappedPoints = [];
 
@@ -258,6 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
       home: DefaultTabController(
         length: 3,
         child: Scaffold(
+          resizeToAvoidBottomPadding: false,
           appBar: AppBar(
             backgroundColor: Colors.lightGreen,
             bottom: TabBar(
@@ -280,12 +158,32 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 children: [
                   new Container(
-                    height: 250,
-                    child: StackedBarChart.withSampleData(),
+                    child: CurDataJSON == null ? CircularProgressIndicator() : BarchartWidget(),
                   ),
                   new Container(
-                    height: 250,
+                    height: 50,
                     child: Text('Polnost zabojnika', style: TextStyle(fontSize: 24)),
+                  ),
+                  new Container(
+                    height: 150,
+                    child: ListView.builder(
+                      itemBuilder: (context, index){
+                        return Card(
+                            child: Padding (
+                              padding: const EdgeInsets.all(10.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Text(index.toString()),
+                                  Text("Datum:" + CurDataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
+                                  Text("Povp. razdalja:" + CurDataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
+                                ],
+                              ),
+                            )
+                        );
+                      },
+                      itemCount: CurDataJSON.length,
+                    ),
                   ),
                 ],
               ),
@@ -296,15 +194,14 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 children: [
                   new Container(
-                    height: 150,
-                    child: SimpleLineChart.withSampleData(),
+                    child: dataJSON == null ? CircularProgressIndicator() : chartWidget(),
                   ),
                   new Container(
                     height: 25,
                     child: Text('Povprečne dnevne vrednosti', style: TextStyle(fontSize: 24)),
                   ),
                   new Container(
-                    height: 250,
+                    height: 150,
                     child: ListView.builder(
                       itemBuilder: (context, index){
                         return Card(
@@ -314,14 +211,14 @@ class _MyHomePageState extends State<MyHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
                                   Text(index.toString()),
-                                  Text("Datum/čas:" + _notes[index].Measure_time, style: TextStyle(fontSize: 16) ),
-                                  Text("Razdalja:" + _notes[index].Sensor_value.toString(), style: TextStyle(fontSize: 16) ),
+                                  Text("Datum:" + dataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
+                                  Text("Povp. razdalja:" + dataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
                                 ],
                               ),
                             )
                         );
                       },
-                      itemCount: _notes.length,
+                      itemCount: dataJSON.length,
                     ),
                   ),
                 ],
@@ -346,7 +243,8 @@ class _MyHomePageState extends State<MyHomePage> {
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               //izvede poizvedbo na server za nove podatke
-              refreshnotes();
+              getAveSensorData();
+              getCurSensorData();
             },
             child: Text('Reload'),
             backgroundColor: Colors.red,
@@ -355,6 +253,128 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
+  Widget chartWidget() {
+    List<TimeSeries> tsdata = [];
+    if (dataJSON != null) {
+      for (Map m in dataJSON) {
+        try {
+          tsdata.add(new TimeSeries(
+              DateTime.parse(m['reading_time']), int.parse(m['value1'])));
+        } catch (e) {
+          print(e.toString());
+        }
+      }
+    } else {
+      // Dummy list to prevent dataJSON = NULL
+      tsdata.add(new TimeSeries(new DateTime.now(), 0));
+    }
+
+    var series = [
+      new charts.Series<TimeSeries, DateTime>(
+        id: 'Timeline',
+        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        domainFn: (TimeSeries polnost, _) => polnost.time,
+        measureFn: (TimeSeries polnost, _) => polnost.value,
+        data: tsdata,
+      ),
+    ];
+
+    var chart = new charts.TimeSeriesChart(
+      series,
+      animate: true,
+    );
+
+    return new Container(
+      child: new Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          new Padding(
+            padding: new EdgeInsets.all(32.0),
+            child: new SizedBox(
+              height: 200.0,
+              child: chart,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget BarchartWidget() {
+    List<TimeSeries> ctsdata = [];
+    if (CurDataJSON != null) {
+      for (Map m in CurDataJSON) {
+        try {
+          ctsdata.add(new TimeSeries(
+              DateTime.parse(m['reading_time']), int.parse(m['value1'])));
+        } catch (e) {
+          print(e.toString());
+        }
+      }
+    } else {
+      // Dummy list to prevent dataJSON = NULL
+      ctsdata.add(new TimeSeries(new DateTime.now(), 0));
+    }
+
+    final desktopSalesData = [
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), int.parse(dataJSON[0]["value1"])),
+    ];
+
+    final tableSalesData = [
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), 30),
+    ];
+
+    var series = [
+      new charts.Series<TimeSeries, String>(
+        id: 'Polno',
+        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
+        domainFn: (TimeSeries polnost, _) => "Danes",
+        measureFn: (TimeSeries polnost, _) => polnost.value,
+        data: desktopSalesData,
+      ),
+      new charts.Series<TimeSeries, String>(
+        id: 'Prazno',
+        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        domainFn: (TimeSeries polnost, _) => "Danes",
+        measureFn: (TimeSeries polnost, _) => polnost.value,
+        data: tableSalesData,
+      ),
+    ];
+
+    var chart = new charts.BarChart(
+      series,
+      animate: true,
+      primaryMeasureAxis: new charts.NumericAxisSpec(
+        tickProviderSpec: new charts.StaticNumericTickProviderSpec(
+          <charts.TickSpec<num>>[
+            charts.TickSpec<num>(0),
+            charts.TickSpec<num>(25),
+            charts.TickSpec<num>(50),
+            charts.TickSpec<num>(75),
+            charts.TickSpec<num>(100),
+          ],
+        ),
+      ),
+      barGroupingType: charts.BarGroupingType.stacked,
+    );
+
+    return new Container(
+      child: new Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          new Padding(
+            padding: new EdgeInsets.all(32.0),
+            child: new SizedBox(
+              height: 200.0,
+              child: chart,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 
   void _handleTap(LatLng latlng) {
