@@ -60,7 +60,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<String> getCurSensorData() async {
     var response = await http //za grafikon zadnjih meritev
-        .get(Uri.encodeFull("http://pametnozodpadki.si/senddata.php?sensor=00FAE453B8E926A1&list=30"), headers: {"Accept": "application/json"});
+        .get(Uri.encodeFull("http://pametnozodpadki.si/senddata.php?sensor=00FAE453B8E926A1&list=60"), headers: {"Accept": "application/json"});
 
     if (this.mounted) {
       this.setState(() {
@@ -246,7 +246,7 @@ class _MyHomePageState extends State<MyHomePage> {
               getAveSensorData();
               getCurSensorData();
             },
-            child: Text('Reload'),
+            child: Text('Osveži'),
             backgroundColor: Colors.red,
           ),
         ),
@@ -283,6 +283,17 @@ class _MyHomePageState extends State<MyHomePage> {
     var chart = new charts.TimeSeriesChart(
       series,
       animate: true,
+      primaryMeasureAxis: new charts.NumericAxisSpec(
+        tickProviderSpec: new charts.StaticNumericTickProviderSpec(
+          <charts.TickSpec<num>>[
+            charts.TickSpec<num>(0),
+            charts.TickSpec<num>(25),
+            charts.TickSpec<num>(50),
+            charts.TickSpec<num>(75),
+            charts.TickSpec<num>(100),
+          ],
+        ),
+      ),
     );
 
     return new Container(
@@ -318,24 +329,24 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     final desktopSalesData = [
-      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), int.parse(dataJSON[0]["value1"])),
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), 100-int.parse(dataJSON[0]["value1"])),
     ];
 
     final tableSalesData = [
-      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), 30),
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), int.parse(dataJSON[0]["value1"])),
     ];
 
     var series = [
       new charts.Series<TimeSeries, String>(
         id: 'Polno',
-        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
+        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
         domainFn: (TimeSeries polnost, _) => "Danes",
         measureFn: (TimeSeries polnost, _) => polnost.value,
         data: desktopSalesData,
       ),
       new charts.Series<TimeSeries, String>(
         id: 'Prazno',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
         domainFn: (TimeSeries polnost, _) => "Danes",
         measureFn: (TimeSeries polnost, _) => polnost.value,
         data: tableSalesData,
