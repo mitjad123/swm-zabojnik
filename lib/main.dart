@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:charts_flutter/flutter.dart' as charts;
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() => runApp(MyApp());
 
@@ -85,6 +86,7 @@ class _MyHomePageState extends State<MyHomePage> {
       curlat = 46.056946; //Ljubljana
       curlng = 14.505751;
     }
+
   }
 
   @override
@@ -162,7 +164,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   new Container(
                     height: 50,
-                    child: Text('Polnost zabojnika', style: TextStyle(fontSize: 24)),
+                    child: Text('Polnost zabojnika (%)', style: TextStyle(fontSize: 24)),
                   ),
                   new Container(
                     height: 150,
@@ -176,7 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 children: <Widget>[
                                   Text(index.toString()),
                                   Text("Datum:" + CurDataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
-                                  Text("Povp. razdalja:" + CurDataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
+                                  Text("Izmerjen % polnosti:" + CurDataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
                                 ],
                               ),
                             )
@@ -198,7 +200,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   new Container(
                     height: 25,
-                    child: Text('Povprečne dnevne vrednosti', style: TextStyle(fontSize: 24)),
+                    child: Text('Povprečni dnevni % polnosti', style: TextStyle(fontSize: 24)),
                   ),
                   new Container(
                     height: 150,
@@ -234,7 +236,21 @@ class _MyHomePageState extends State<MyHomePage> {
                   layers: [
                     new TileLayerOptions(
                       urlTemplate: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", subdomains: ['a', 'b', 'c']),
-                      new MarkerLayerOptions(markers: markers
+                      new MarkerLayerOptions(markers: [//]markers
+                          new Marker(
+                          width: 45.0,
+                          height: 45.0,
+                          point: new LatLng(curlat, curlng),
+                          builder: (context) => new Container(
+                            child: IconButton(
+                              icon: Icon(Icons.my_location),
+                              color: Colors.red,
+                              iconSize: 45.0,
+                              onPressed: () {
+                                print('Marker tapped');
+                              },
+                            ),
+                          ))]
                       )
                   ]
                 )
@@ -329,24 +345,24 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     final desktopSalesData = [
-      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), 100-int.parse(dataJSON[0]["value1"])),
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), int.parse(dataJSON[0]["value1"])),
     ];
 
     final tableSalesData = [
-      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), int.parse(dataJSON[0]["value1"])),
+      new TimeSeries(DateTime.fromMicrosecondsSinceEpoch(0), 100-int.parse(dataJSON[0]["value1"])),
     ];
 
     var series = [
       new charts.Series<TimeSeries, String>(
         id: 'Polno',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
         domainFn: (TimeSeries polnost, _) => "Danes",
         measureFn: (TimeSeries polnost, _) => polnost.value,
         data: desktopSalesData,
       ),
       new charts.Series<TimeSeries, String>(
         id: 'Prazno',
-        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
+        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
         domainFn: (TimeSeries polnost, _) => "Danes",
         measureFn: (TimeSeries polnost, _) => polnost.value,
         data: tableSalesData,
