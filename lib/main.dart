@@ -45,8 +45,8 @@ class _MyHomePageState extends State<MyHomePage> {
   double curlat=0.0;
   double curlng=0.0;
 
-  List dataJSON;
-  List CurDataJSON;
+  List dataJSON = []; //dodal = [] ker je bil nek error https://stackoverflow.com/questions/51177294/flutter-the-getter-length-was-called-on-null
+  List CurDataJSON = [];
 
   Future<String> getAveSensorData() async {
     var response = await http //za grafikon povprečnih vrednosti
@@ -129,6 +129,26 @@ class _MyHomePageState extends State<MyHomePage> {
         (size.height - kToolbarHeight - statusBarHeight) / 2;
     final double itemWidth = size.width / 2;
 
+
+    final List<Widget> aboutBoxChildren = <Widget>[
+      SizedBox(
+        height: 20,
+      ),
+      Text('Pametno z odpadki'),
+      Text('Študentski inovativni projekti za družbeno korist 2016-2020'),
+      RichText(
+        text: TextSpan(
+          children: <TextSpan>[
+            TextSpan(
+                style: TextStyle(color: Theme.of(context).accentColor),
+                text: 'http://www.pametnozodpadki.si'),
+          ],
+        ),
+      ),
+      Image.asset("assets/logo1.jpg", width: 100.0, height:100.0),
+      Image.asset("assets/logo2.jpg", width: 100.0, height:100.0),
+      Image.asset("assets/logo3.jpg", width: 100.0, height:100.0)
+    ];
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -151,6 +171,33 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
             title: Text('Pametni zabojnik'),
+          ),
+          drawer: Drawer(
+            child: SingleChildScrollView(
+              child: SafeArea(
+                child: Column(
+                  children: <Widget>[
+                    AboutListTile(
+                      child: Text('O aplikaciji'),
+                      icon: Icon(
+                        Icons.info,
+                      ),
+                      applicationIcon: const SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image(
+                          image: AssetImage('assets/logo100.jpg'),
+                        ),
+                      ),
+                      applicationName: 'Pametno z odpadki',
+                      applicationVersion: '1.0.7',
+                      applicationLegalese: '© 2020 Projekt Pametno upravljanje z odpadki',
+                      aboutBoxChildren: aboutBoxChildren,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           body: TabBarView(physics: NeverScrollableScrollPhysics(), children:
           [
@@ -177,8 +224,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
                                   Text(index.toString()),
-                                  Text("Datum:" + CurDataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
-                                  Text("Izmerjen % polnosti:" + CurDataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
+                                  Text("Datum: " + CurDataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
+                                  Text("Izmerjen % polnosti: " + CurDataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
                                 ],
                               ),
                             )
@@ -213,8 +260,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: <Widget>[
                                   Text(index.toString()),
-                                  Text("Datum:" + dataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
-                                  Text("Povp. razdalja:" + dataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
+                                  Text("Datum: " + dataJSON[index]["reading_time"], style: TextStyle(fontSize: 16) ),
+                                  Text("Povp. razdalja: " + dataJSON[index]["value1"], style: TextStyle(fontSize: 16) ),
                                 ],
                               ),
                             )
@@ -261,6 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
               //izvede poizvedbo na server za nove podatke
               getAveSensorData();
               getCurSensorData();
+              setposition();
             },
             child: Text('Osveži'),
             backgroundColor: Colors.red,
@@ -354,19 +402,20 @@ class _MyHomePageState extends State<MyHomePage> {
 
     var series = [
       new charts.Series<TimeSeries, String>(
-        id: 'Polno',
-        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
-        domainFn: (TimeSeries polnost, _) => "Danes",
-        measureFn: (TimeSeries polnost, _) => polnost.value,
-        data: desktopSalesData,
-      ),
-      new charts.Series<TimeSeries, String>(
         id: 'Prazno',
-        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        colorFn: (_, __) => charts.MaterialPalette.green.shadeDefault,
         domainFn: (TimeSeries polnost, _) => "Danes",
         measureFn: (TimeSeries polnost, _) => polnost.value,
         data: tableSalesData,
       ),
+      new charts.Series<TimeSeries, String>(
+        id: 'Polno',
+        colorFn: (_, __) => charts.MaterialPalette.red.shadeDefault,
+        domainFn: (TimeSeries polnost, _) => "Danes",
+        measureFn: (TimeSeries polnost, _) => polnost.value,
+        data: desktopSalesData,
+      ),
+
     ];
 
     var chart = new charts.BarChart(
